@@ -43,6 +43,10 @@ final class OverlayWindowController {
         }
     }
 
+    func updateAudioLevel(_ level: Double) {
+        model.audioLevel = level
+    }
+
     private func show() {
         guard let window else { return }
         position(window)
@@ -80,21 +84,20 @@ final class OverlayWindowController {
 @MainActor
 final class OverlayModel: ObservableObject {
     @Published var state: CaptureState = .idle
+    @Published var audioLevel: Double = 0
 }
 
 struct OverlayView: View {
     @ObservedObject var model: OverlayModel
 
     var body: some View {
-            HStack(spacing: 12) {
-                statusIcon
+        HStack(spacing: 12) {
+            statusIcon
                 .frame(width: 86, height: 36)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 14, weight: .semibold))
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                subtitleView
             }
             Spacer(minLength: 0)
         }
@@ -124,18 +127,21 @@ struct OverlayView: View {
         }
     }
 
-    private var subtitle: String {
+    @ViewBuilder
+    private var subtitleView: some View {
         switch model.state {
         case .idle:
-            "Option+1"
+            Text("Option+1")
         case let .recording(startedAt):
-            startedAt.formatted(.relative(presentation: .numeric))
+            TimelineView(.periodic(from: .now, by: 0.25)) { timeline in
+                Text(RecordingDurationFormatter.text(elapsed: timeline.date.timeIntervalSince(startedAt)))
+            }
         case .processing:
-            "正在转写并润色"
+            Text("正在转写并润色")
         case let .done(message):
-            message
+            Text(message)
         case let .failed(message):
-            message
+            Text(message)
         }
     }
 
@@ -143,7 +149,7 @@ struct OverlayView: View {
     private var statusIcon: some View {
         switch model.state {
         case .recording:
-            RecordingWaveView()
+            RecordingWaveView(level: model.audioLevel)
         case .processing:
             ProgressView().controlSize(.small)
         case .done:
@@ -157,6 +163,8 @@ struct OverlayView: View {
 }
 
 struct RecordingWaveView: View {
+    let level: Double
+
     var body: some View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
@@ -174,7 +182,7 @@ struct RecordingWaveView: View {
                     ForEach(0..<8, id: \.self) { index in
                         Capsule()
                             .fill(Color.red.opacity(0.82))
-                            .frame(width: 4, height: barHeight(t, index: index))
+                            .frame(width: 4, height: barHeight(t, index: index, level: level))
                     }
                 }
                 .frame(width: 44, height: 32)
@@ -186,8 +194,9 @@ struct RecordingWaveView: View {
         (sin(t * 4.2) + 1) / 2
     }
 
-    private func barHeight(_ t: TimeInterval, index: Int) -> CGFloat {
+    private func barHeight(_ t: TimeInterval, index: Int, level: Double) -> CGFloat {
+        guard level > 0.03 else { return 5 }
         let phase = t * 6.5 + Double(index) * 0.72
-        return CGFloat(9 + 20 * ((sin(phase) + 1) / 2))
+        return CGFloat(5 + 24 * level * ((sin(phase) + 1) / 2))
     }
 }

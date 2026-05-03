@@ -74,7 +74,10 @@ struct VoiceInputChecks {
         let migratedSettings = try! JSONDecoder().decode(AppSettings.self, from: legacySettingsJSON)
         check(migratedSettings.timeoutSeconds == AppSettings.defaults.timeoutSeconds, "legacy settings should migrate timeoutSeconds")
         check(AppSettings.defaults.timeoutSeconds >= 10, "default timeout should be long enough for network calls")
-        check(migratedSettings.enableFunctionKey == false, "legacy settings should default Fn trigger off to avoid input method conflicts")
+        check(RecordingDurationFormatter.text(elapsed: 0) == "已录 00:00", "recording duration should start at zero")
+        check(RecordingDurationFormatter.text(elapsed: 75) == "已录 01:15", "recording duration should show minutes and seconds")
+        check(AudioLevelNormalizer.normalizedPower(-80) == 0, "silent input should normalize to zero")
+        check(AudioLevelNormalizer.normalizedPower(-20) > 0.6, "speech-level input should move waveform")
         check(AppSettings.defaults.textModel == "Pro/zai-org/GLM-5.1", "default text model should prioritize best structural cleanup quality")
 
         check(

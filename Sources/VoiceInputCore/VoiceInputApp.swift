@@ -37,9 +37,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindow = SettingsWindowController(settingsStore: settingsStore, historyStore: historyStore)
         setupMenu()
         hotkeyManager.onToggle = { [weak self] in self?.toggleRecording() }
-        hotkeyManager.shouldHandleFunctionKey = { [weak self] in
-            self?.settingsStore.settings.enableFunctionKey ?? false
-        }
         hotkeyManager.start()
         _ = PasteboardService.requestAccessibilityIfNeeded()
     }
@@ -113,6 +110,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             do {
                 currentAudioURL = try recorder.start()
+                recorder.onLevelChange = { [weak self] level in
+                    self?.overlay.updateAudioLevel(level)
+                }
                 state = .recording(startedAt: Date())
             } catch {
                 state = .failed(error.localizedDescription)
@@ -122,6 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func stopRecording() {
         recorder.stop()
+        overlay.updateAudioLevel(0)
         guard let audioURL = currentAudioURL else {
             state = .failed("没有找到录音文件")
             return

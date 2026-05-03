@@ -16,7 +16,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var keepClipboardCopy: Bool
     public var historyLimit: Int
     public var timeoutSeconds: Double
-    public var enableFunctionKey: Bool
 
     public static let defaults = AppSettings(
         baseURL: "https://api.siliconflow.cn/v1",
@@ -25,8 +24,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         autoPaste: true,
         keepClipboardCopy: true,
         historyLimit: 10,
-        timeoutSeconds: 45,
-        enableFunctionKey: false
+        timeoutSeconds: 45
     )
 
     public init(
@@ -36,8 +34,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         autoPaste: Bool,
         keepClipboardCopy: Bool,
         historyLimit: Int,
-        timeoutSeconds: Double,
-        enableFunctionKey: Bool
+        timeoutSeconds: Double
     ) {
         self.baseURL = baseURL
         self.sttModel = sttModel
@@ -46,7 +43,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.keepClipboardCopy = keepClipboardCopy
         self.historyLimit = historyLimit
         self.timeoutSeconds = timeoutSeconds
-        self.enableFunctionKey = enableFunctionKey
     }
 
     enum CodingKeys: String, CodingKey {
@@ -57,7 +53,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case keepClipboardCopy
         case historyLimit
         case timeoutSeconds
-        case enableFunctionKey
     }
 
     public init(from decoder: Decoder) throws {
@@ -69,7 +64,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
         keepClipboardCopy = try container.decodeIfPresent(Bool.self, forKey: .keepClipboardCopy) ?? Self.defaults.keepClipboardCopy
         historyLimit = try container.decodeIfPresent(Int.self, forKey: .historyLimit) ?? Self.defaults.historyLimit
         timeoutSeconds = try container.decodeIfPresent(Double.self, forKey: .timeoutSeconds) ?? Self.defaults.timeoutSeconds
-        enableFunctionKey = try container.decodeIfPresent(Bool.self, forKey: .enableFunctionKey) ?? Self.defaults.enableFunctionKey
     }
 }
 
@@ -86,5 +80,22 @@ public enum DeliveryMessage {
             return "整理失败，已复制原文"
         }
         return didPaste ? "已复制并粘贴" : "已复制到剪贴板"
+    }
+}
+
+public enum RecordingDurationFormatter {
+    public static func text(elapsed: TimeInterval) -> String {
+        let totalSeconds = max(0, Int(elapsed.rounded(.down)))
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "已录 %02d:%02d", minutes, seconds)
+    }
+}
+
+public enum AudioLevelNormalizer {
+    public static func normalizedPower(_ averagePower: Float) -> Double {
+        guard averagePower > -60 else { return 0 }
+        let clamped = min(0, max(-60, averagePower))
+        return Double((clamped + 60) / 60)
     }
 }
