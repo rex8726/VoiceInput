@@ -84,6 +84,12 @@ struct VoiceInputChecks {
             "raw fallback should report copied raw text"
         )
 
+        let plistData = try! LoginItemService.launchAgentPlist(executablePath: "/Applications/VoiceInput.app/Contents/MacOS/VoiceInput")
+        let plist = try! PropertyListSerialization.propertyList(from: plistData, format: nil) as! [String: Any]
+        check(plist["Label"] as? String == "cn.local.voiceinput.loginitem", "login item plist should use stable label")
+        check((plist["ProgramArguments"] as? [String])?.first == "/Applications/VoiceInput.app/Contents/MacOS/VoiceInput", "login item should launch current executable")
+        check(plist["RunAtLoad"] as? Bool == true, "login item should run at load")
+
         print("VoiceInputChecks passed")
     }
 }

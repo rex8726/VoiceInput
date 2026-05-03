@@ -16,7 +16,9 @@
 - 最近 10 条历史记录。
 - API Key 存储在 macOS Keychain。
 - 设置页可以测试文本整理模型。
+- API Key 输入支持手动粘贴按钮，避免安全输入框焦点问题。
 - 菜单栏和设置页显示权限状态。
+- 设置页支持开机自启。
 - STT 成功但 AI 整理失败时，会复制原始转写，避免内容丢失。
 
 ## 运行
@@ -54,6 +56,7 @@ swift run VoiceInputChecks
 - 文本整理模型默认：`Qwen/Qwen3-8B`
 - API Key：在设置页填写并保存。
 - API 超时默认：45 秒，可在设置页调整。
+- 开机自启：在设置页“输入”区域打开，会写入当前用户的 `~/Library/LaunchAgents/cn.local.voiceinput.loginitem.plist`。
 
 不要把 API Key 写进仓库或提交到代码里。
 

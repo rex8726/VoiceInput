@@ -44,6 +44,8 @@ struct SettingsView: View {
     @State private var apiTestMessage = ""
     @State private var isTestingAPI = false
     @State private var permissionSnapshot = PermissionService.snapshot()
+    @State private var launchAtLogin = LoginItemService.isEnabled()
+    @State private var launchAtLoginMessage = ""
 
     var body: some View {
         Form {
@@ -63,7 +65,17 @@ struct SettingsView: View {
 
             Section("API") {
                 TextField("Base URL", text: $settingsStore.settings.baseURL)
-                SecureField("API Key", text: $apiKey)
+                HStack {
+                    SecureField("API Key", text: $apiKey)
+                    Button("粘贴") {
+                        pasteAPIKey()
+                    }
+                    Button("清空") {
+                        apiKey = ""
+                        KeychainStore.saveAPIKey("")
+                        savedMessage = "已清空"
+                    }
+                }
                 TextField("语音转文字模型", text: $settingsStore.settings.sttModel)
                 TextField("文本整理模型", text: $settingsStore.settings.textModel)
                 Button("保存 API Key") {
@@ -86,6 +98,13 @@ struct SettingsView: View {
             Section("输入") {
                 Toggle("处理完成后自动粘贴", isOn: $settingsStore.settings.autoPaste)
                 Toggle("始终复制到剪贴板", isOn: $settingsStore.settings.keepClipboardCopy)
+                Toggle("开机自启", isOn: Binding(
+                    get: { launchAtLogin },
+                    set: { setLaunchAtLogin($0) }
+                ))
+                if !launchAtLoginMessage.isEmpty {
+                    Text(launchAtLoginMessage).foregroundStyle(.secondary)
+                }
                 Stepper("历史记录：\(settingsStore.settings.historyLimit) 条", value: $settingsStore.settings.historyLimit, in: 1...50)
                 Stepper(
                     "API 超时：\(Int(settingsStore.settings.timeoutSeconds)) 秒",
@@ -152,6 +171,28 @@ struct SettingsView: View {
                     isTestingAPI = false
                 }
             }
+        }
+    }
+
+    private func pasteAPIKey() {
+        let text = NSPasteboard.general.string(forType: .string) ?? ""
+        apiKey = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        savedMessage = apiKey.isEmpty ? "剪贴板没有文本" : "已从剪贴板填入"
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            guard let executablePath = Bundle.main.executablePath else {
+                launchAtLoginMessage = "无法定位当前应用"
+                launchAtLogin = LoginItemService.isEnabled()
+                return
+            }
+            try LoginItemService.setEnabled(enabled, executablePath: executablePath)
+            launchAtLogin = enabled
+            launchAtLoginMessage = enabled ? "已开启开机自启" : "已关闭开机自启"
+        } catch {
+            launchAtLogin = LoginItemService.isEnabled()
+            launchAtLoginMessage = "设置失败：\(error.localizedDescription)"
         }
     }
 }
