@@ -75,7 +75,7 @@ struct VoiceInputChecks {
         check(migratedSettings.timeoutSeconds == AppSettings.defaults.timeoutSeconds, "legacy settings should migrate timeoutSeconds")
         check(AppSettings.defaults.timeoutSeconds >= 10, "default timeout should be long enough for network calls")
         check(migratedSettings.enableFunctionKey == false, "legacy settings should default Fn trigger off to avoid input method conflicts")
-        check(AppSettings.defaults.textModel.contains("DeepSeek") || AppSettings.defaults.textModel.contains("Qwen3-32"), "default text model should be strong enough for structural cleanup")
+        check(AppSettings.defaults.textModel == "Pro/zai-org/GLM-5.1", "default text model should prioritize best structural cleanup quality")
 
         check(
             DeliveryMessage.message(didPaste: true, usedRawFallback: false) == "已复制并粘贴",

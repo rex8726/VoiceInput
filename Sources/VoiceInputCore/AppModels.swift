@@ -21,7 +21,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public static let defaults = AppSettings(
         baseURL: "https://api.siliconflow.cn/v1",
         sttModel: "FunAudioLLM/SenseVoiceSmall",
-        textModel: "deepseek-ai/DeepSeek-V3",
+        textModel: "Pro/zai-org/GLM-5.1",
         autoPaste: true,
         keepClipboardCopy: true,
         historyLimit: 10,

@@ -53,7 +53,7 @@ swift run VoiceInputChecks
 
 - Base URL 默认：`https://api.siliconflow.cn/v1`
 - 语音转文字模型默认：`FunAudioLLM/SenseVoiceSmall`
-- 文本整理模型默认：`deepseek-ai/DeepSeek-V3`
+- 文本整理模型默认：`Pro/zai-org/GLM-5.1`
 - API Key：在设置页填写并保存。
 - API 超时默认：45 秒，可在设置页调整。
 - 开机自启：在设置页“输入”区域打开，会写入当前用户的 `~/Library/LaunchAgents/cn.local.voiceinput.loginitem.plist`。
