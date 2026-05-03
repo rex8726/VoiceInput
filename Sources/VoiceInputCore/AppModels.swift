@@ -16,15 +16,17 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var keepClipboardCopy: Bool
     public var historyLimit: Int
     public var timeoutSeconds: Double
+    public var enableFunctionKey: Bool
 
     public static let defaults = AppSettings(
         baseURL: "https://api.siliconflow.cn/v1",
         sttModel: "FunAudioLLM/SenseVoiceSmall",
-        textModel: "Qwen/Qwen3-8B",
+        textModel: "deepseek-ai/DeepSeek-V3",
         autoPaste: true,
         keepClipboardCopy: true,
         historyLimit: 10,
-        timeoutSeconds: 45
+        timeoutSeconds: 45,
+        enableFunctionKey: false
     )
 
     public init(
@@ -34,7 +36,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         autoPaste: Bool,
         keepClipboardCopy: Bool,
         historyLimit: Int,
-        timeoutSeconds: Double
+        timeoutSeconds: Double,
+        enableFunctionKey: Bool
     ) {
         self.baseURL = baseURL
         self.sttModel = sttModel
@@ -43,6 +46,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.keepClipboardCopy = keepClipboardCopy
         self.historyLimit = historyLimit
         self.timeoutSeconds = timeoutSeconds
+        self.enableFunctionKey = enableFunctionKey
     }
 
     enum CodingKeys: String, CodingKey {
@@ -53,6 +57,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case keepClipboardCopy
         case historyLimit
         case timeoutSeconds
+        case enableFunctionKey
     }
 
     public init(from decoder: Decoder) throws {
@@ -64,6 +69,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         keepClipboardCopy = try container.decodeIfPresent(Bool.self, forKey: .keepClipboardCopy) ?? Self.defaults.keepClipboardCopy
         historyLimit = try container.decodeIfPresent(Int.self, forKey: .historyLimit) ?? Self.defaults.historyLimit
         timeoutSeconds = try container.decodeIfPresent(Double.self, forKey: .timeoutSeconds) ?? Self.defaults.timeoutSeconds
+        enableFunctionKey = try container.decodeIfPresent(Bool.self, forKey: .enableFunctionKey) ?? Self.defaults.enableFunctionKey
     }
 }
 

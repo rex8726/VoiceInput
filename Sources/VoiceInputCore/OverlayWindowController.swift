@@ -9,8 +9,10 @@ final class OverlayWindowController {
     init() {
         let view = OverlayView(model: model)
         let hosting = NSHostingController(rootView: view)
+        hosting.view.wantsLayer = true
+        hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
         let window = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 230, height: 56),
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 72),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -18,6 +20,7 @@ final class OverlayWindowController {
         window.contentViewController = hosting
         window.isOpaque = false
         window.backgroundColor = .clear
+        window.hasShadow = false
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         window.ignoresMouseEvents = true
@@ -83,9 +86,9 @@ struct OverlayView: View {
     @ObservedObject var model: OverlayModel
 
     var body: some View {
-        HStack(spacing: 12) {
-            statusIcon
-                .frame(width: 24, height: 24)
+            HStack(spacing: 12) {
+                statusIcon
+                .frame(width: 86, height: 36)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 14, weight: .semibold))
@@ -96,9 +99,13 @@ struct OverlayView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
-        .frame(width: 230, height: 56)
-        .background(.regularMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.16)))
+        .frame(width: 300, height: 72)
+        .background(
+            Capsule()
+                .fill(.regularMaterial)
+        )
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.18)))
+        .clipShape(Capsule())
         .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
     }
 
@@ -120,7 +127,7 @@ struct OverlayView: View {
     private var subtitle: String {
         switch model.state {
         case .idle:
-            "Fn 或 Option+1"
+            "Option+1"
         case let .recording(startedAt):
             startedAt.formatted(.relative(presentation: .numeric))
         case .processing:
@@ -136,10 +143,7 @@ struct OverlayView: View {
     private var statusIcon: some View {
         switch model.state {
         case .recording:
-            ZStack {
-                Circle().fill(Color.red.opacity(0.18))
-                Circle().fill(Color.red).frame(width: 9, height: 9)
-            }
+            RecordingWaveView()
         case .processing:
             ProgressView().controlSize(.small)
         case .done:
@@ -149,5 +153,41 @@ struct OverlayView: View {
         case .idle:
             Image(systemName: "mic.fill").foregroundStyle(.secondary)
         }
+    }
+}
+
+struct RecordingWaveView: View {
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            HStack(spacing: 7) {
+                ZStack {
+                    Circle()
+                        .fill(Color.red.opacity(0.18 + 0.12 * pulse(t)))
+                        .frame(width: 30 + 8 * pulse(t), height: 30 + 8 * pulse(t))
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 12, height: 12)
+                }
+
+                HStack(alignment: .center, spacing: 3) {
+                    ForEach(0..<8, id: \.self) { index in
+                        Capsule()
+                            .fill(Color.red.opacity(0.82))
+                            .frame(width: 4, height: barHeight(t, index: index))
+                    }
+                }
+                .frame(width: 44, height: 32)
+            }
+        }
+    }
+
+    private func pulse(_ t: TimeInterval) -> Double {
+        (sin(t * 4.2) + 1) / 2
+    }
+
+    private func barHeight(_ t: TimeInterval, index: Int) -> CGFloat {
+        let phase = t * 6.5 + Double(index) * 0.72
+        return CGFloat(9 + 20 * ((sin(phase) + 1) / 2))
     }
 }

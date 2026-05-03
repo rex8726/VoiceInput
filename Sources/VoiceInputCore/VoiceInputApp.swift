@@ -37,6 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindow = SettingsWindowController(settingsStore: settingsStore, historyStore: historyStore)
         setupMenu()
         hotkeyManager.onToggle = { [weak self] in self?.toggleRecording() }
+        hotkeyManager.shouldHandleFunctionKey = { [weak self] in
+            self?.settingsStore.settings.enableFunctionKey ?? false
+        }
         hotkeyManager.start()
         _ = PasteboardService.requestAccessibilityIfNeeded()
     }
@@ -152,8 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let didPaste: Bool
         if settingsStore.settings.autoPaste,
-           PasteboardService.requestAccessibilityIfNeeded(),
-           PasteboardService.focusedElementAcceptsPaste() {
+           PasteboardService.requestAccessibilityIfNeeded() {
             PasteboardService.paste()
             didPaste = true
         } else {

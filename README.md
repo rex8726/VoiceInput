@@ -1,12 +1,12 @@
 # VoiceInput
 
-一个极简 macOS 语音输入 MVP：按 Fn 开始录音，再按 Fn 结束录音；应用调用硅基流动语音转文字和文本模型，把口语整理成清晰文本，并自动粘贴到当前输入框，同时保留剪贴板兜底。
+一个极简 macOS 语音输入 MVP：按 Option + 1 开始录音，再按 Option + 1 结束录音；应用调用硅基流动语音转文字和文本模型，把口语整理成清晰文本，并自动粘贴到当前输入框，同时保留剪贴板兜底。
 
 ## 当前能力
 
 - 菜单栏常驻应用。
-- Fn 单击切换录音开始/结束。
-- Option + 1 备用快捷键。
+- Option + 1 单击切换录音开始/结束。
+- Fn 可在设置中启用，但默认关闭，避免和 macOS 输入法切换冲突。
 - 底部悬浮状态组件：正在听、整理中、已输入、处理失败。
 - 硅基流动 STT：`POST /v1/audio/transcriptions`。
 - 硅基流动 Chat Completions：`POST /v1/chat/completions`。
@@ -53,7 +53,7 @@ swift run VoiceInputChecks
 
 - Base URL 默认：`https://api.siliconflow.cn/v1`
 - 语音转文字模型默认：`FunAudioLLM/SenseVoiceSmall`
-- 文本整理模型默认：`Qwen/Qwen3-8B`
+- 文本整理模型默认：`deepseek-ai/DeepSeek-V3`
 - API Key：在设置页填写并保存。
 - API 超时默认：45 秒，可在设置页调整。
 - 开机自启：在设置页“输入”区域打开，会写入当前用户的 `~/Library/LaunchAgents/cn.local.voiceinput.loginitem.plist`。
@@ -69,8 +69,9 @@ swift run VoiceInputChecks
 
 ## 已知限制
 
-- Fn 键在不同键盘和 macOS 设置下表现可能不同，所以提供了 Option + 1 兜底。
-- 当前自动粘贴使用剪贴板 + Cmd+V。应用会先通过 Accessibility 检查当前焦点是否像可编辑输入框；无法确认时只复制到剪贴板。
+- Fn 键在不同键盘和 macOS 设置下表现可能不同，也会和输入法切换冲突，所以默认关闭。
+- 当前自动粘贴使用剪贴板 + Cmd+V。
+- 为了兼容浏览器和聊天软件输入框，自动粘贴会在有辅助功能权限时直接尝试 Cmd+V；如果当前没有输入框，内容仍保留在剪贴板。
 - 第一版不保存原始音频，处理完成后删除临时录音文件。
 - 第一版没有做翻译、问答、长音频文件转写或会议记录。
 - `swift test` 在当前 Command Line Tools 环境里不可用，项目使用 `swift run VoiceInputChecks` 作为轻量回归检查入口。

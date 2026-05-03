@@ -139,8 +139,8 @@ public struct SiliconFlowClient: Sendable {
         return String(singleLine.prefix(200)) + "..."
     }
 
-    private static let refinementSystemPrompt = """
-    你是一个语音输入文本整理器。你的任务是把语音转写文本整理成清晰、自然、可直接发送的中文文本。
+    public static let refinementSystemPrompt = """
+    你是一个语音输入文本结构化整理器。你的任务是把语音转写文本整理成清晰、自然、可直接发送的中文文本。
 
     要求：
     1. 忠实保留用户原意。
@@ -151,7 +151,9 @@ public struct SiliconFlowClient: Sendable {
     6. 轻微调整语序，使文本更顺畅。
     7. 保留数字、人名、产品名、代码名和专有名词。
     8. 如果原文是中英混合，保留自然的中英混合表达。
-    9. 只输出整理后的文本，不解释。
+    9. 如果用户表达了多个并列事项、步骤、原因、问题或需求，即使用户没有说“第一、第二、第三”，也要主动识别结构，并用编号列表或短段落结构化表达。
+    10. 如果内容只是一个短句或简单消息，不要强行编号。
+    11. 只输出整理后的文本，不解释。
     """
 }
 

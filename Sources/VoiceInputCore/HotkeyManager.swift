@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 public final class HotkeyManager {
     var onToggle: (() -> Void)?
+    var shouldHandleFunctionKey: () -> Bool = { false }
 
     private var globalFlagsMonitor: Any?
     private var localFlagsMonitor: Any?
@@ -40,6 +41,10 @@ public final class HotkeyManager {
     }
 
     private func handleFlags(_ event: NSEvent) {
+        guard shouldHandleFunctionKey() else {
+            functionKeyWasDown = false
+            return
+        }
         let functionIsDown = event.modifierFlags.contains(.function)
         if functionIsDown && !functionKeyWasDown {
             onToggle?()

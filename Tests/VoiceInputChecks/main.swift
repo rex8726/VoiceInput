@@ -74,6 +74,8 @@ struct VoiceInputChecks {
         let migratedSettings = try! JSONDecoder().decode(AppSettings.self, from: legacySettingsJSON)
         check(migratedSettings.timeoutSeconds == AppSettings.defaults.timeoutSeconds, "legacy settings should migrate timeoutSeconds")
         check(AppSettings.defaults.timeoutSeconds >= 10, "default timeout should be long enough for network calls")
+        check(migratedSettings.enableFunctionKey == false, "legacy settings should default Fn trigger off to avoid input method conflicts")
+        check(AppSettings.defaults.textModel.contains("DeepSeek") || AppSettings.defaults.textModel.contains("Qwen3-32"), "default text model should be strong enough for structural cleanup")
 
         check(
             DeliveryMessage.message(didPaste: true, usedRawFallback: false) == "已复制并粘贴",
@@ -89,6 +91,11 @@ struct VoiceInputChecks {
         check(plist["Label"] as? String == "cn.local.voiceinput.loginitem", "login item plist should use stable label")
         check((plist["ProgramArguments"] as? [String])?.first == "/Applications/VoiceInput.app/Contents/MacOS/VoiceInput", "login item should launch current executable")
         check(plist["RunAtLoad"] as? Bool == true, "login item should run at load")
+
+        check(
+            SiliconFlowClient.refinementSystemPrompt.contains("结构化") && SiliconFlowClient.refinementSystemPrompt.contains("编号列表"),
+            "refinement prompt should ask the model to infer structure"
+        )
 
         print("VoiceInputChecks passed")
     }

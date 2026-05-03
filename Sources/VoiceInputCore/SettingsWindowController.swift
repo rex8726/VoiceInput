@@ -98,6 +98,10 @@ struct SettingsView: View {
             Section("输入") {
                 Toggle("处理完成后自动粘贴", isOn: $settingsStore.settings.autoPaste)
                 Toggle("始终复制到剪贴板", isOn: $settingsStore.settings.keepClipboardCopy)
+                Toggle("启用 Fn 快捷键", isOn: $settingsStore.settings.enableFunctionKey)
+                Text("Fn 可能与 macOS 输入法切换冲突。默认建议使用 Option+1。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("开机自启", isOn: Binding(
                     get: { launchAtLogin },
                     set: { setLaunchAtLogin($0) }
