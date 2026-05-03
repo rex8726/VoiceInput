@@ -1,0 +1,157 @@
+import AppKit
+import SwiftUI
+
+@MainActor
+final class SettingsWindowController {
+    private var window: NSWindow?
+    private let settingsStore: SettingsStore
+    private let historyStore: HistoryStore
+
+    init(settingsStore: SettingsStore, historyStore: HistoryStore) {
+        self.settingsStore = settingsStore
+        self.historyStore = historyStore
+    }
+
+    func show() {
+        if let window {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let view = SettingsView(settingsStore: settingsStore, historyStore: historyStore)
+        let hosting = NSHostingController(rootView: view)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 430),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "语音输入设置"
+        window.contentViewController = hosting
+        window.center()
+        self.window = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+struct SettingsView: View {
+    @ObservedObject var settingsStore: SettingsStore
+    @ObservedObject var historyStore: HistoryStore
+    @State private var apiKey = KeychainStore.readAPIKey()
+    @State private var savedMessage = ""
+    @State private var apiTestMessage = ""
+    @State private var isTestingAPI = false
+    @State private var permissionSnapshot = PermissionService.snapshot()
+
+    var body: some View {
+        Form {
+            Section("权限") {
+                LabeledContent("麦克风", value: permissionSnapshot.microphone)
+                LabeledContent("辅助功能", value: permissionSnapshot.accessibility)
+                LabeledContent("输入监控", value: permissionSnapshot.inputMonitoring)
+                HStack {
+                    Button("刷新权限状态") {
+                        permissionSnapshot = PermissionService.snapshot()
+                    }
+                    Button("打开隐私设置") {
+                        PermissionService.openPrivacySettings()
+                    }
+                }
+            }
+
+            Section("API") {
+                TextField("Base URL", text: $settingsStore.settings.baseURL)
+                SecureField("API Key", text: $apiKey)
+                TextField("语音转文字模型", text: $settingsStore.settings.sttModel)
+                TextField("文本整理模型", text: $settingsStore.settings.textModel)
+                Button("保存 API Key") {
+                    KeychainStore.saveAPIKey(apiKey)
+                    savedMessage = "已保存"
+                }
+                Button(isTestingAPI ? "测试中..." : "测试文本整理模型") {
+                    testTextModel()
+                }
+                .disabled(isTestingAPI)
+                if !savedMessage.isEmpty {
+                    Text(savedMessage).foregroundStyle(.secondary)
+                }
+                if !apiTestMessage.isEmpty {
+                    Text(apiTestMessage)
+                        .foregroundStyle(apiTestMessage.hasPrefix("可用") ? .green : .red)
+                }
+            }
+
+            Section("输入") {
+                Toggle("处理完成后自动粘贴", isOn: $settingsStore.settings.autoPaste)
+                Toggle("始终复制到剪贴板", isOn: $settingsStore.settings.keepClipboardCopy)
+                Stepper("历史记录：\(settingsStore.settings.historyLimit) 条", value: $settingsStore.settings.historyLimit, in: 1...50)
+                Stepper(
+                    "API 超时：\(Int(settingsStore.settings.timeoutSeconds)) 秒",
+                    value: $settingsStore.settings.timeoutSeconds,
+                    in: 10...120,
+                    step: 5
+                )
+            }
+
+            Section("历史") {
+                if historyStore.items.isEmpty {
+                    Text("暂无历史记录").foregroundStyle(.secondary)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(historyStore.items) { item in
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(item.createdAt, style: .time)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Text(item.refinedText)
+                                            .lineLimit(3)
+                                    }
+                                    Spacer()
+                                    Button("复制") {
+                                        PasteboardService.copy(item.refinedText)
+                                    }
+                                }
+                                Divider()
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 140)
+                }
+                Button("清空历史", role: .destructive) {
+                    historyStore.clear()
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding(20)
+        .frame(width: 560, height: 520)
+    }
+
+    private func testTextModel() {
+        KeychainStore.saveAPIKey(apiKey)
+        savedMessage = "已保存"
+        apiTestMessage = ""
+        isTestingAPI = true
+
+        Task {
+            do {
+                let client = SiliconFlowClient(settings: settingsStore.settings, apiKey: apiKey)
+                let result = try await client.refine(rawText: "嗯那个我想测试一下这个语音输入软件然后看看它能不能把口水词去掉")
+                await MainActor.run {
+                    apiTestMessage = result.isEmpty ? "测试失败：返回为空" : "可用：文本整理模型返回正常"
+                    isTestingAPI = false
+                }
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                await MainActor.run {
+                    apiTestMessage = "测试失败：\(message)"
+                    isTestingAPI = false
+                }
+            }
+        }
+    }
+}

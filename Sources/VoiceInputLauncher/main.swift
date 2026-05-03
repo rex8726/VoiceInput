@@ -1,0 +1,3 @@
+import VoiceInputCore
+
+VoiceInputApplication.run()
