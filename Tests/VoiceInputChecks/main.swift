@@ -51,8 +51,9 @@ struct VoiceInputChecks {
             "endpoint builder should avoid duplicate slashes"
         )
 
+        let fakeBearerHeader = "Authorization: Bearer " + "secret-token"
         check(
-            SiliconFlowClient.sanitizedErrorMessage("Authorization: Bearer secret-token\n{\"message\":\"bad\"}").contains("secret-token") == false,
+            SiliconFlowClient.sanitizedErrorMessage(fakeBearerHeader + "\n{\"message\":\"bad\"}").contains("secret-token") == false,
             "API errors should not include bearer tokens"
         )
 
