@@ -6,35 +6,74 @@ import Foundation
 public final class HotkeyManager {
     var onToggle: (() -> Void)?
 
-    private var globalKeyMonitor: Any?
-    private var localKeyMonitor: Any?
+    private var hotKeyRef: EventHotKeyRef?
+    private var eventHandlerRef: EventHandlerRef?
+    private let hotKeyID = EventHotKeyID(signature: HotkeyManager.signature, id: 1)
 
     func start() {
-        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            Task { @MainActor in self?.handleKey(event) }
-        }
-        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handleKey(event)
-            return event
+        stop()
+
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
+
+        let selfPointer = Unmanaged.passUnretained(self).toOpaque()
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, event, userData in
+                guard let event, let userData else { return noErr }
+
+                var receivedID = EventHotKeyID()
+                let status = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &receivedID
+                )
+                guard status == noErr,
+                      receivedID.signature == HotkeyManager.signature,
+                      receivedID.id == 1
+                else { return noErr }
+
+                let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
+                Task { @MainActor in
+                    manager.onToggle?()
+                }
+                return noErr
+            },
+            1,
+            &eventType,
+            selfPointer,
+            &eventHandlerRef
+        )
+
+        var ref: EventHotKeyRef?
+        let status = RegisterEventHotKey(
+            UInt32(kVK_ANSI_1),
+            UInt32(optionKey),
+            hotKeyID,
+            GetApplicationEventTarget(),
+            0,
+            &ref
+        )
+        if status == noErr {
+            hotKeyRef = ref
         }
     }
 
     func stop() {
-        [globalKeyMonitor, localKeyMonitor].forEach { monitor in
-            if let monitor { NSEvent.removeMonitor(monitor) }
+        if let hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
         }
-        globalKeyMonitor = nil
-        localKeyMonitor = nil
-    }
-
-    private func handleKey(_ event: NSEvent) {
-        if Self.shouldToggleBackupShortcut(
-            keyCode: event.keyCode,
-            modifierFlags: event.modifierFlags,
-            isRepeat: event.isARepeat
-        ) {
-            onToggle?()
+        if let eventHandlerRef {
+            RemoveEventHandler(eventHandlerRef)
         }
+        hotKeyRef = nil
+        eventHandlerRef = nil
     }
 
     public static func shouldToggleBackupShortcut(
@@ -46,4 +85,11 @@ public final class HotkeyManager {
         let flags = modifierFlags.intersection(.deviceIndependentFlagsMask)
         return flags.contains(.option) && keyCode == UInt16(kVK_ANSI_1)
     }
+
+    private static let signature: OSType = {
+        let scalars = Array("VIHK".unicodeScalars)
+        return scalars.reduce(OSType(0)) { result, scalar in
+            (result << 8) + OSType(scalar.value)
+        }
+    }()
 }
