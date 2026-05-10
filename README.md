@@ -2,6 +2,10 @@
 
 一个极简 macOS 语音输入 MVP：按 Option + 1 开始录音，再按 Option + 1 结束录音；应用调用硅基流动语音转文字和文本模型，把口语整理成清晰文本，并自动粘贴到当前输入框，同时保留剪贴板兜底。
 
+## 下载
+
+下载最新版本：[VoiceInput Releases](https://github.com/rex8726/VoiceInput/releases)
+
 ## 特性
 
 - 全局快捷键语音输入。
