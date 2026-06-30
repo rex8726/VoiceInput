@@ -37,4 +37,7 @@ public enum LLMProvider: String, Codable, CaseIterable, Sendable {
     }
 
     public var sendsEnableThinking: Bool { self == .siliconflow }
+
+    /// Keychain account name for this provider's API key.
+    public var keychainAccount: String { "apikey-\(rawValue)" }
 }

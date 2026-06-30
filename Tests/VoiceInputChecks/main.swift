@@ -101,6 +101,9 @@ struct VoiceInputChecks {
             "refinement prompt should ask the model to infer structure"
         )
 
+        check(LLMProvider.deepseek.keychainAccount == "apikey-deepseek", "keychain account per provider")
+        check(LLMProvider.siliconflow.keychainAccount == "apikey-siliconflow", "keychain account siliconflow")
+
         check(RefinementPolicy.shouldRefine("好的", minLength: 8) == false, "short text skips refine")
         check(RefinementPolicy.shouldRefine("这是一段足够长的语音输入文本", minLength: 8), "long text refines")
         check(RefinementPolicy.shouldRefine("一二三四五六七八", minLength: 8), "at-threshold refines")
