@@ -101,6 +101,14 @@ struct VoiceInputChecks {
             "refinement prompt should ask the model to infer structure"
         )
 
+        check(LLMProvider.deepseek.defaultTextModel == "deepseek-v4-flash", "deepseek default model id")
+        check(LLMProvider.bailian.defaultTextModel == "qwen3.7-plus", "bailian default model id")
+        check(LLMProvider.siliconflow.defaultBaseURL == "https://api.siliconflow.cn/v1", "siliconflow base url")
+        check(LLMProvider.deepseek.defaultBaseURL == "https://api.deepseek.com/v1", "deepseek base url")
+        check(LLMProvider.bailian.defaultBaseURL == "https://dashscope.aliyuncs.com/compatible-mode/v1", "bailian base url")
+        check(LLMProvider.siliconflow.supportsSTT && !LLMProvider.deepseek.supportsSTT && !LLMProvider.bailian.supportsSTT, "only siliconflow supports STT")
+        check(LLMProvider.siliconflow.sendsEnableThinking && !LLMProvider.deepseek.sendsEnableThinking, "enable_thinking only for siliconflow")
+
         print("VoiceInputChecks passed")
     }
 }
