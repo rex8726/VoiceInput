@@ -166,7 +166,13 @@ struct SettingsView: View {
 
         Task {
             do {
-                let client = SiliconFlowClient(settings: settingsStore.settings, apiKey: apiKey)
+                let client = ChatRefinementClient(
+                    provider: .siliconflow,
+                    baseURL: settingsStore.settings.baseURL,
+                    model: settingsStore.settings.textModel,
+                    apiKey: apiKey,
+                    timeout: settingsStore.settings.timeoutSeconds
+                )
                 let result = try await client.refine(rawText: "嗯那个我想测试一下这个语音输入软件然后看看它能不能把口水词去掉")
                 await MainActor.run {
                     let ok = !result.isEmpty

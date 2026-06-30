@@ -136,11 +136,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         processingTask = Task { @MainActor in
             defer { processingTask = nil }
             do {
-                let client = SiliconFlowClient(settings: settingsStore.settings, apiKey: KeychainStore.readAPIKey())
-                let rawText = try await client.transcribe(audioURL: audioURL)
+                let stt = TranscriptionClient(
+                    baseURL: settingsStore.settings.baseURL,
+                    model: settingsStore.settings.sttModel,
+                    apiKey: KeychainStore.readAPIKey(),
+                    timeout: settingsStore.settings.timeoutSeconds
+                )
+                let rawText = try await stt.transcribe(audioURL: audioURL)
                 if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
                 do {
-                    let refinedText = try await client.refine(rawText: rawText)
+                    let chat = ChatRefinementClient(
+                        provider: .siliconflow,
+                        baseURL: settingsStore.settings.baseURL,
+                        model: settingsStore.settings.textModel,
+                        apiKey: KeychainStore.readAPIKey(),
+                        timeout: settingsStore.settings.timeoutSeconds
+                    )
+                    let refinedText = try await chat.refine(rawText: rawText)
                     if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
                     historyStore.add(rawText: rawText, refinedText: refinedText, limit: settingsStore.settings.historyLimit)
                     deliver(refinedText, usedRawFallback: false)

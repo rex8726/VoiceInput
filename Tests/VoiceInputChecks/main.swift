@@ -47,20 +47,27 @@ struct VoiceInputChecks {
         check(store.items.map(\.refinedText) == ["三", "二"], "history should keep configured limit")
 
         check(
-            SiliconFlowClient.endpoint(baseURL: "https://api.siliconflow.cn/v1/", path: "chat/completions")?.absoluteString == "https://api.siliconflow.cn/v1/chat/completions",
+            OpenAICompatibleAPI.endpoint(baseURL: "https://api.siliconflow.cn/v1/", path: "chat/completions")?.absoluteString == "https://api.siliconflow.cn/v1/chat/completions",
             "endpoint builder should avoid duplicate slashes"
         )
 
         let fakeBearerHeader = "Authorization: Bearer " + "secret-token"
         check(
-            SiliconFlowClient.sanitizedErrorMessage(fakeBearerHeader + "\n{\"message\":\"bad\"}").contains("secret-token") == false,
+            OpenAICompatibleAPI.sanitizedErrorMessage(fakeBearerHeader + "\n{\"message\":\"bad\"}").contains("secret-token") == false,
             "API errors should not include bearer tokens"
         )
 
         check(
-            SiliconFlowClient.sanitizedErrorMessage(String(repeating: "x", count: 400)).count <= 220,
+            OpenAICompatibleAPI.sanitizedErrorMessage(String(repeating: "x", count: 400)).count <= 220,
             "API errors should be capped for UI display"
         )
+
+        let siliconflowPayload = try! ChatRefinementClient.chatRequestJSON(provider: .siliconflow, model: "m", rawText: "x")
+        let deepseekPayload = try! ChatRefinementClient.chatRequestJSON(provider: .deepseek, model: "m", rawText: "x")
+        let bailianPayload = try! ChatRefinementClient.chatRequestJSON(provider: .bailian, model: "m", rawText: "x")
+        check(siliconflowPayload.contains("enable_thinking"), "siliconflow payload includes enable_thinking")
+        check(deepseekPayload.contains("enable_thinking") == false, "deepseek payload omits enable_thinking")
+        check(bailianPayload.contains("enable_thinking") == false, "bailian payload omits enable_thinking")
 
         let legacySettingsJSON = """
         {
@@ -97,7 +104,7 @@ struct VoiceInputChecks {
         check(plist["RunAtLoad"] as? Bool == true, "login item should run at load")
 
         check(
-            SiliconFlowClient.refinementSystemPrompt.contains("结构化") && SiliconFlowClient.refinementSystemPrompt.contains("编号列表"),
+            OpenAICompatibleAPI.refinementSystemPrompt.contains("结构化") && OpenAICompatibleAPI.refinementSystemPrompt.contains("编号列表"),
             "refinement prompt should ask the model to infer structure"
         )
 
