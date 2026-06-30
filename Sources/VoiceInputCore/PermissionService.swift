@@ -2,6 +2,7 @@ import AppKit
 import AVFoundation
 import ApplicationServices
 import Foundation
+import IOKit.hid
 
 public struct PermissionSnapshot: Equatable, Sendable {
     public let microphone: String
@@ -19,7 +20,7 @@ enum PermissionService {
         PermissionSnapshot(
             microphone: microphoneStatus(),
             accessibility: AXIsProcessTrusted() ? "已允许" : "未允许",
-            inputMonitoring: "按键无响应时请开启"
+            inputMonitoring: inputMonitoringStatus()
         )
     }
 
@@ -38,6 +39,17 @@ enum PermissionService {
             return "未询问"
         @unknown default:
             return "未知"
+        }
+    }
+
+    private static func inputMonitoringStatus() -> String {
+        switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
+        case kIOHIDAccessTypeGranted:
+            return "已允许"
+        case kIOHIDAccessTypeDenied:
+            return "未允许"
+        default:
+            return "未询问"
         }
     }
 }

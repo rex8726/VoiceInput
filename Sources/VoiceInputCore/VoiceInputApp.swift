@@ -151,18 +151,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func deliver(_ text: String, usedRawFallback: Bool) {
-        if settingsStore.settings.keepClipboardCopy || settingsStore.settings.autoPaste {
-            PasteboardService.copy(text)
+        let settings = settingsStore.settings
+
+        // Decide whether to auto-paste. Unknown focus (nil) still pastes, so opaque web/Electron
+        // inputs keep working; only a positively non-editable focus skips the paste.
+        let hasAccess = settings.autoPaste && PasteboardService.requestAccessibilityIfNeeded()
+        let willPaste = hasAccess && (PasteboardService.focusedElementPasteDecision() ?? true)
+
+        guard willPaste else {
+            if settings.keepClipboardCopy || settings.autoPaste {
+                PasteboardService.copy(text)
+            }
+            state = .done(DeliveryMessage.message(didPaste: false, usedRawFallback: usedRawFallback))
+            return
         }
-        let didPaste: Bool
-        if settingsStore.settings.autoPaste,
-           PasteboardService.requestAccessibilityIfNeeded() {
+
+        // Snapshot the user's clipboard so we can restore it after pasting, unless they asked to
+        // keep the result on the clipboard.
+        let previousClipboard = settings.keepClipboardCopy ? nil : PasteboardService.currentString()
+        PasteboardService.copy(text)
+
+        Task { @MainActor in
+            // Release the toggle's Option modifier and let the pasteboard settle before injecting
+            // Cmd+V, otherwise the paste can merge with held modifiers or fire before the copy lands.
+            await PasteboardService.waitForModifiersCleared()
+            try? await Task.sleep(nanoseconds: 60_000_000)
             PasteboardService.paste()
-            didPaste = true
-        } else {
-            didPaste = false
+
+            if let previousClipboard {
+                // Give the target app time to consume the paste before restoring the old clipboard.
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                PasteboardService.copy(previousClipboard)
+            }
+
+            state = .done(DeliveryMessage.message(didPaste: true, usedRawFallback: usedRawFallback))
         }
-        state = .done(DeliveryMessage.message(didPaste: didPaste, usedRawFallback: usedRawFallback))
     }
 
     @objc private func startRecordingFromMenu() {

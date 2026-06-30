@@ -22,7 +22,7 @@ final class SettingsWindowController {
         let view = SettingsView(settingsStore: settingsStore, historyStore: historyStore)
         let hosting = NSHostingController(rootView: view)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 430),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 520),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -42,6 +42,7 @@ struct SettingsView: View {
     @State private var apiKey = KeychainStore.readAPIKey()
     @State private var savedMessage = ""
     @State private var apiTestMessage = ""
+    @State private var apiTestSucceeded: Bool?
     @State private var isTestingAPI = false
     @State private var permissionSnapshot = PermissionService.snapshot()
     @State private var launchAtLogin = LoginItemService.isEnabled()
@@ -52,7 +53,10 @@ struct SettingsView: View {
             Section("权限") {
                 LabeledContent("麦克风", value: permissionSnapshot.microphone)
                 LabeledContent("辅助功能", value: permissionSnapshot.accessibility)
-                LabeledContent("输入监控", value: permissionSnapshot.inputMonitoring)
+                LabeledContent("输入监控（可选）", value: permissionSnapshot.inputMonitoring)
+                Text("麦克风、辅助功能为必需权限。输入监控通常不需要开启，仅当 Option+1 全局快捷键无效时再尝试。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 HStack {
                     Button("刷新权限状态") {
                         permissionSnapshot = PermissionService.snapshot()
@@ -72,7 +76,7 @@ struct SettingsView: View {
                     }
                     Button("清空") {
                         apiKey = ""
-                        KeychainStore.saveAPIKey("")
+                        KeychainStore.deleteAPIKey()
                         savedMessage = "已清空"
                     }
                 }
@@ -91,7 +95,7 @@ struct SettingsView: View {
                 }
                 if !apiTestMessage.isEmpty {
                     Text(apiTestMessage)
-                        .foregroundStyle(apiTestMessage.hasPrefix("可用") ? .green : .red)
+                        .foregroundStyle(apiTestSucceeded == true ? .green : .red)
                 }
             }
 
@@ -157,6 +161,7 @@ struct SettingsView: View {
         KeychainStore.saveAPIKey(apiKey)
         savedMessage = "已保存"
         apiTestMessage = ""
+        apiTestSucceeded = nil
         isTestingAPI = true
 
         Task {
@@ -164,12 +169,15 @@ struct SettingsView: View {
                 let client = SiliconFlowClient(settings: settingsStore.settings, apiKey: apiKey)
                 let result = try await client.refine(rawText: "嗯那个我想测试一下这个语音输入软件然后看看它能不能把口水词去掉")
                 await MainActor.run {
-                    apiTestMessage = result.isEmpty ? "测试失败：返回为空" : "可用：文本整理模型返回正常"
+                    let ok = !result.isEmpty
+                    apiTestSucceeded = ok
+                    apiTestMessage = ok ? "可用：文本整理模型返回正常" : "测试失败：返回为空"
                     isTestingAPI = false
                 }
             } catch {
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 await MainActor.run {
+                    apiTestSucceeded = false
                     apiTestMessage = "测试失败：\(message)"
                     isTestingAPI = false
                 }

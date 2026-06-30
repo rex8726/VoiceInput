@@ -80,6 +80,10 @@ enum KeychainStore {
     }
 
     static func saveAPIKey(_ value: String) {
+        guard !value.isEmpty else {
+            deleteAPIKey()
+            return
+        }
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -95,5 +99,14 @@ enum KeychainStore {
             addQuery[kSecValueData as String] = data
             SecItemAdd(addQuery as CFDictionary, nil)
         }
+    }
+
+    static func deleteAPIKey() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 }
