@@ -26,10 +26,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: SettingsWindowController?
     private var statusItem: NSStatusItem?
     private var currentAudioURL: URL?
+    private var processingTask: Task<Void, Never>?
     private var state: CaptureState = .idle {
         didSet {
             overlay.update(state)
             updateStatusMenu()
+            updateCancelHotkey()
         }
     }
 
@@ -37,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindow = SettingsWindowController(settingsStore: settingsStore, historyStore: historyStore)
         setupMenu()
         hotkeyManager.onToggle = { [weak self] in self?.toggleRecording() }
+        hotkeyManager.onCancel = { [weak self] in self?.cancelCapture() }
         hotkeyManager.start()
         _ = PasteboardService.requestAccessibilityIfNeeded()
     }
@@ -130,23 +133,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         currentAudioURL = nil
         state = .processing
 
-        Task { @MainActor in
+        processingTask = Task { @MainActor in
+            defer { processingTask = nil }
             do {
                 let client = SiliconFlowClient(settings: settingsStore.settings, apiKey: KeychainStore.readAPIKey())
                 let rawText = try await client.transcribe(audioURL: audioURL)
+                if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
                 do {
                     let refinedText = try await client.refine(rawText: rawText)
+                    if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
                     historyStore.add(rawText: rawText, refinedText: refinedText, limit: settingsStore.settings.historyLimit)
                     deliver(refinedText, usedRawFallback: false)
                 } catch {
+                    if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
                     historyStore.add(rawText: rawText, refinedText: rawText, limit: settingsStore.settings.historyLimit)
                     deliver(rawText, usedRawFallback: true)
                 }
                 try? FileManager.default.removeItem(at: audioURL)
             } catch {
                 try? FileManager.default.removeItem(at: audioURL)
+                if Task.isCancelled || error is CancellationError { return }
                 state = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
             }
+        }
+    }
+
+    private func cancelCapture() {
+        switch state {
+        case .recording:
+            recorder.stop()
+            overlay.updateAudioLevel(0)
+            if let url = currentAudioURL {
+                try? FileManager.default.removeItem(at: url)
+            }
+            currentAudioURL = nil
+            state = .idle
+        case .processing:
+            processingTask?.cancel()
+            processingTask = nil
+            state = .idle
+        default:
+            break
+        }
+    }
+
+    private func updateCancelHotkey() {
+        switch state {
+        case .recording, .processing:
+            hotkeyManager.startCancelHotkey()
+        default:
+            hotkeyManager.stopCancelHotkey()
         }
     }
 

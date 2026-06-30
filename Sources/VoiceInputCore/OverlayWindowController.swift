@@ -134,10 +134,10 @@ struct OverlayView: View {
             Text("Option+1")
         case let .recording(startedAt):
             TimelineView(.periodic(from: .now, by: 0.25)) { timeline in
-                Text(RecordingDurationFormatter.text(elapsed: timeline.date.timeIntervalSince(startedAt)))
+                Text(RecordingDurationFormatter.text(elapsed: timeline.date.timeIntervalSince(startedAt)) + " · Esc 取消")
             }
         case .processing:
-            Text("正在转写并润色")
+            Text("正在转写并润色 · Esc 取消")
         case let .done(message):
             Text(message)
         case let .failed(message):
