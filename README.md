@@ -23,7 +23,8 @@
 - 不再使用 Fn 作为触发键，避免和 macOS 输入法切换冲突。
 - 底部悬浮状态组件：正在听、整理中、已输入、处理失败。
 - 硅基流动 STT：`POST /v1/audio/transcriptions`。
-- 硅基流动 Chat Completions：`POST /v1/chat/completions`。
+- 文本润色支持多服务商（硅基流动 / DeepSeek / 阿里百炼），均走 OpenAI 兼容 `POST /chat/completions`，可在设置页独立选择。
+- 短句（短于设定字数）自动跳过润色、直接发送原文，减少一次网络往返。
 - 标准整理：补标点、分段、去口水词、去重复、轻微整理语序。
 - 自动粘贴到当前输入框。
 - 自动复制到剪贴板作为兜底。
@@ -63,16 +64,30 @@ swift run VoiceInputChecks
 
 ## 配置
 
-从菜单栏麦克风图标打开“设置...”：
+从菜单栏麦克风图标打开“设置...”。语音转文字和文本润色分两步、各自独立配置服务商：
 
+**语音转文字（STT）**
+
+- 服务商：硅基流动（暂固定）。
 - Base URL 默认：`https://api.siliconflow.cn/v1`
-- 语音转文字模型默认：`FunAudioLLM/SenseVoiceSmall`
-- 文本整理模型默认：`Pro/zai-org/GLM-5.1`
-- API Key：在设置页填写并保存。
+- 模型默认：`FunAudioLLM/SenseVoiceSmall`
+- API Key：硅基流动 Key，在“语音转文字”区填写保存。
+
+**文本润色**
+
+- 服务商可选：硅基流动 / DeepSeek / 阿里百炼，切换时自动填入该家默认 Base URL 和模型（仍可手动改）。
+- 默认服务商：DeepSeek，默认模型 `deepseek-v4-flash`。
+- 阿里百炼默认模型 `qwen3.7-plus`；硅基流动默认模型 `Pro/zai-org/GLM-5.1`。
+- API Key 按服务商分别保存在 Keychain；硅基流动的文本润色复用上方硅基流动 Key。
+- 可用“测试文本整理模型”按钮验证当前服务商配置。
+
+**其他**
+
+- 短句直发：设置页“输入”区可设“短于 N 字直接发送原文（0 = 始终润色）”，默认 8。短句跳过润色这一步、直接发原文，省一次网络往返。
 - API 超时默认：45 秒，可在设置页调整。
 - 开机自启：在设置页“输入”区域打开，会写入当前用户的 `~/Library/LaunchAgents/cn.local.voiceinput.loginitem.plist`。
 
-不要把 API Key 写进仓库或提交到代码里。
+不要把 API Key 写进仓库或提交到代码里。Key 只存在 macOS Keychain。
 
 ## 失败兜底
 
