@@ -92,6 +92,13 @@ public enum RecordingDurationFormatter {
     }
 }
 
+public enum RefinementPolicy {
+    public static func shouldRefine(_ text: String, minLength: Int) -> Bool {
+        guard minLength > 0 else { return true }
+        return text.count >= minLength
+    }
+}
+
 public enum AudioLevelNormalizer {
     public static func normalizedPower(_ averagePower: Float) -> Double {
         guard averagePower > -60 else { return 0 }

@@ -101,6 +101,11 @@ struct VoiceInputChecks {
             "refinement prompt should ask the model to infer structure"
         )
 
+        check(RefinementPolicy.shouldRefine("好的", minLength: 8) == false, "short text skips refine")
+        check(RefinementPolicy.shouldRefine("这是一段足够长的语音输入文本", minLength: 8), "long text refines")
+        check(RefinementPolicy.shouldRefine("一二三四五六七八", minLength: 8), "at-threshold refines")
+        check(RefinementPolicy.shouldRefine("短", minLength: 0), "minLength 0 always refines")
+
         check(LLMProvider.deepseek.defaultTextModel == "deepseek-v4-flash", "deepseek default model id")
         check(LLMProvider.bailian.defaultTextModel == "qwen3.7-plus", "bailian default model id")
         check(LLMProvider.siliconflow.defaultBaseURL == "https://api.siliconflow.cn/v1", "siliconflow base url")
