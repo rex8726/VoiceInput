@@ -24,7 +24,8 @@ OpenAI-compatible HTTP chat APIs. Regression gate: `swift run VoiceInputChecks`
 - Text refinement: SiliconFlow / DeepSeek / Bailian, independently selectable.
 - Keychain: store one API key **per provider** (`apikey-<provider>`), reused
   across steps that share a provider.
-- Default text provider stays SiliconFlow (no behavior change on upgrade).
+- Default text provider for **fresh installs** is DeepSeek (`deepseek-v4-flash`).
+  Existing users keep their migrated SiliconFlow config (see Migration).
 - Short-transcript skip is normal output, not a failure fallback.
 
 ## Provider Model
@@ -35,12 +36,18 @@ New `LLMProvider` enum, `String`-backed and `Codable`, cases `siliconflow`,
 | Provider    | displayName | defaultBaseURL                                      | defaultTextModel    | supportsSTT | supportsText |
 |-------------|-------------|-----------------------------------------------------|---------------------|-------------|--------------|
 | siliconflow | 硅基流动     | `https://api.siliconflow.cn/v1`                     | `Pro/zai-org/GLM-5.1` | yes       | yes          |
-| deepseek    | DeepSeek    | `https://api.deepseek.com/v1`                       | `deepseek-chat`     | no          | yes          |
-| bailian     | 阿里百炼     | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus`         | no          | yes          |
+| deepseek    | DeepSeek    | `https://api.deepseek.com/v1`                       | `deepseek-v4-flash` | no          | yes          |
+| bailian     | 阿里百炼     | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen3.7-plus`      | no          | yes          |
 
 Per-provider request quirk: `enable_thinking` is sent **only** for
 `siliconflow`. DeepSeek and Bailian receive a standard OpenAI chat payload with
-that field omitted, to avoid rejection.
+that field omitted.
+
+**Verified against live APIs (2026-06-30):** `deepseek-v4-flash` and
+`qwen3.7-plus` both return correct non-streaming `choices[0].message.content`
+for a refinement prompt with the plain OpenAI payload (no `enable_thinking`).
+Model ids confirmed via each provider's `/models` endpoint. (Bailian also
+exposes `qwen3-asr-flash` for future STT, out of scope here.)
 
 ## Configuration & Migration
 
@@ -56,7 +63,10 @@ AppSettings {
 }
 ```
 
-`STTConfig` / `TextConfig` are `Codable` structs with their own defaults.
+`STTConfig` / `TextConfig` are `Codable` structs with their own defaults. The
+fresh-install default `textConfig` is `{ provider: .deepseek, baseURL:
+deepseek default, model: deepseek-v4-flash }`. The fresh-install default
+`sttConfig` is the siliconflow defaults.
 
 **Migration (backward-compatible decode):** `AppSettings.init(from:)` keeps using
 `decodeIfPresent`. When the new nested keys are absent, it reads the legacy
@@ -148,6 +158,5 @@ Add/keep pure-function checks:
 
 ## Out of Scope
 
-- Bailian ASR (STT) integration.
+- Bailian ASR (STT) integration (`qwen3-asr-flash` reserved for later).
 - Streaming refinement output.
-- Changing the default text provider away from SiliconFlow.
