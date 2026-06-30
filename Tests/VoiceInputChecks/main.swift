@@ -79,14 +79,22 @@ struct VoiceInputChecks {
           "historyLimit": 10
         }
         """.data(using: .utf8)!
-        let migratedSettings = try! JSONDecoder().decode(AppSettings.self, from: legacySettingsJSON)
-        check(migratedSettings.timeoutSeconds == AppSettings.defaults.timeoutSeconds, "legacy settings should migrate timeoutSeconds")
+        let migrated = try! JSONDecoder().decode(AppSettings.self, from: legacySettingsJSON)
+        check(migrated.sttConfig.model == "FunAudioLLM/SenseVoiceSmall", "legacy sttModel migrates")
+        check(migrated.textConfig.model == "Qwen/Qwen3-8B", "legacy textModel migrates")
+        check(migrated.textConfig.provider == .siliconflow, "legacy text provider is siliconflow")
+        check(migrated.sttConfig.baseURL == "https://api.siliconflow.cn/v1", "legacy baseURL migrates to stt")
+        check(migrated.textConfig.baseURL == "https://api.siliconflow.cn/v1", "legacy baseURL migrates to text")
+        check(migrated.refineMinLength == 8, "default refineMinLength on migration")
+        check(migrated.timeoutSeconds == AppSettings.defaults.timeoutSeconds, "legacy settings should migrate timeoutSeconds")
         check(AppSettings.defaults.timeoutSeconds >= 10, "default timeout should be long enough for network calls")
+        check(AppSettings.defaults.textConfig.provider == .deepseek, "fresh install defaults to deepseek")
+        check(AppSettings.defaults.textConfig.model == "deepseek-v4-flash", "fresh install deepseek model")
+        check(AppSettings.defaults.sttConfig.model == "FunAudioLLM/SenseVoiceSmall", "fresh install stt model")
         check(RecordingDurationFormatter.text(elapsed: 0) == "已录 00:00", "recording duration should start at zero")
         check(RecordingDurationFormatter.text(elapsed: 75) == "已录 01:15", "recording duration should show minutes and seconds")
         check(AudioLevelNormalizer.normalizedPower(-80) == 0, "silent input should normalize to zero")
         check(AudioLevelNormalizer.normalizedPower(-20) > 0.6, "speech-level input should move waveform")
-        check(AppSettings.defaults.textModel == "Pro/zai-org/GLM-5.1", "default text model should prioritize best structural cleanup quality")
 
         check(
             DeliveryMessage.message(didPaste: true, usedRawFallback: false) == "已复制并粘贴",

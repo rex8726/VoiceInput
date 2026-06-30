@@ -83,19 +83,6 @@ enum KeychainStore {
         delete(account: account(for: provider))
     }
 
-    // Legacy no-arg API (removed in Task 5)
-    static func readAPIKey() -> String { read(account: legacyAccount) }
-
-    static func saveAPIKey(_ value: String) {
-        if value.isEmpty {
-            delete(account: legacyAccount)
-            return
-        }
-        write(value, account: legacyAccount)
-    }
-
-    static func deleteAPIKey() { delete(account: legacyAccount) }
-
     private static func migrateLegacyIfNeeded() {
         let target = account(for: .siliconflow)
         guard read(account: target).isEmpty else { return }

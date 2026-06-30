@@ -39,7 +39,8 @@ final class SettingsWindowController {
 struct SettingsView: View {
     @ObservedObject var settingsStore: SettingsStore
     @ObservedObject var historyStore: HistoryStore
-    @State private var apiKey = KeychainStore.readAPIKey()
+    @State private var sttApiKey = KeychainStore.readAPIKey(for: .siliconflow)
+    @State private var textApiKey = ""
     @State private var savedMessage = ""
     @State private var apiTestMessage = ""
     @State private var apiTestSucceeded: Bool?
@@ -67,25 +68,59 @@ struct SettingsView: View {
                 }
             }
 
-            Section("API") {
-                TextField("Base URL", text: $settingsStore.settings.baseURL)
+            Section("语音转文字") {
+                LabeledContent("服务商", value: LLMProvider.siliconflow.displayName)
+                TextField("Base URL", text: $settingsStore.settings.sttConfig.baseURL)
+                TextField("语音转文字模型", text: $settingsStore.settings.sttConfig.model)
                 HStack {
-                    SecureField("API Key", text: $apiKey)
-                    Button("粘贴") {
-                        pasteAPIKey()
-                    }
+                    SecureField("硅基流动 API Key", text: $sttApiKey)
+                    Button("粘贴") { sttApiKey = pasteFromClipboard() }
                     Button("清空") {
-                        apiKey = ""
-                        KeychainStore.deleteAPIKey()
-                        savedMessage = "已清空"
+                        sttApiKey = ""
+                        KeychainStore.deleteAPIKey(for: .siliconflow)
+                        savedMessage = "已清空硅基流动 Key"
                     }
                 }
-                TextField("语音转文字模型", text: $settingsStore.settings.sttModel)
-                TextField("文本整理模型", text: $settingsStore.settings.textModel)
-                Button("保存 API Key") {
-                    KeychainStore.saveAPIKey(apiKey)
+                Button("保存硅基流动 Key") {
+                    KeychainStore.saveAPIKey(sttApiKey, for: .siliconflow)
                     savedMessage = "已保存"
                 }
+            }
+
+            Section("文本润色") {
+                Picker("服务商", selection: $settingsStore.settings.textConfig.provider) {
+                    ForEach(LLMProvider.allCases, id: \.self) { provider in
+                        Text(provider.displayName).tag(provider)
+                    }
+                }
+                .onChange(of: settingsStore.settings.textConfig.provider) { newValue in
+                    settingsStore.settings.textConfig.baseURL = newValue.defaultBaseURL
+                    settingsStore.settings.textConfig.model = newValue.defaultTextModel
+                    textApiKey = KeychainStore.readAPIKey(for: newValue)
+                }
+                TextField("Base URL", text: $settingsStore.settings.textConfig.baseURL)
+                TextField("文本整理模型", text: $settingsStore.settings.textConfig.model)
+
+                if settingsStore.settings.textConfig.provider != .siliconflow {
+                    HStack {
+                        SecureField("\(settingsStore.settings.textConfig.provider.displayName) API Key", text: $textApiKey)
+                        Button("粘贴") { textApiKey = pasteFromClipboard() }
+                        Button("清空") {
+                            textApiKey = ""
+                            KeychainStore.deleteAPIKey(for: settingsStore.settings.textConfig.provider)
+                            savedMessage = "已清空"
+                        }
+                    }
+                    Button("保存 \(settingsStore.settings.textConfig.provider.displayName) Key") {
+                        KeychainStore.saveAPIKey(textApiKey, for: settingsStore.settings.textConfig.provider)
+                        savedMessage = "已保存"
+                    }
+                } else {
+                    Text("硅基流动文本润色复用上方的硅基流动 API Key。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Button(isTestingAPI ? "测试中..." : "测试文本整理模型") {
                     testTextModel()
                 }
@@ -118,6 +153,11 @@ struct SettingsView: View {
                     value: $settingsStore.settings.timeoutSeconds,
                     in: 10...120,
                     step: 5
+                )
+                Stepper(
+                    "短于 \(settingsStore.settings.refineMinLength) 字直接发送原文（0 = 始终润色）",
+                    value: $settingsStore.settings.refineMinLength,
+                    in: 0...50
                 )
             }
 
@@ -155,10 +195,21 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .padding(20)
         .frame(width: 560, height: 520)
+        .onAppear {
+            textApiKey = KeychainStore.readAPIKey(for: settingsStore.settings.textConfig.provider)
+        }
+    }
+
+    /// The API key for the currently selected text provider. When that provider is siliconflow
+    /// it is the same Keychain entry as the STT key, so read it from `sttApiKey`.
+    private var currentTextKey: String {
+        settingsStore.settings.textConfig.provider == .siliconflow ? sttApiKey : textApiKey
     }
 
     private func testTextModel() {
-        KeychainStore.saveAPIKey(apiKey)
+        let textConfig = settingsStore.settings.textConfig
+        let key = currentTextKey
+        KeychainStore.saveAPIKey(key, for: textConfig.provider)
         savedMessage = "已保存"
         apiTestMessage = ""
         apiTestSucceeded = nil
@@ -167,10 +218,10 @@ struct SettingsView: View {
         Task {
             do {
                 let client = ChatRefinementClient(
-                    provider: .siliconflow,
-                    baseURL: settingsStore.settings.baseURL,
-                    model: settingsStore.settings.textModel,
-                    apiKey: apiKey,
+                    provider: textConfig.provider,
+                    baseURL: textConfig.baseURL,
+                    model: textConfig.model,
+                    apiKey: key,
                     timeout: settingsStore.settings.timeoutSeconds
                 )
                 let result = try await client.refine(rawText: "嗯那个我想测试一下这个语音输入软件然后看看它能不能把口水词去掉")
@@ -191,10 +242,11 @@ struct SettingsView: View {
         }
     }
 
-    private func pasteAPIKey() {
-        let text = NSPasteboard.general.string(forType: .string) ?? ""
-        apiKey = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        savedMessage = apiKey.isEmpty ? "剪贴板没有文本" : "已从剪贴板填入"
+    private func pasteFromClipboard() -> String {
+        let text = (NSPasteboard.general.string(forType: .string) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        savedMessage = text.isEmpty ? "剪贴板没有文本" : "已从剪贴板填入"
+        return text
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {

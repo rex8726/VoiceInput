@@ -133,32 +133,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         currentAudioURL = nil
         state = .processing
 
+        let settings = settingsStore.settings
         processingTask = Task { @MainActor in
             defer { processingTask = nil }
             do {
                 let stt = TranscriptionClient(
-                    baseURL: settingsStore.settings.baseURL,
-                    model: settingsStore.settings.sttModel,
-                    apiKey: KeychainStore.readAPIKey(),
-                    timeout: settingsStore.settings.timeoutSeconds
+                    baseURL: settings.sttConfig.baseURL,
+                    model: settings.sttConfig.model,
+                    apiKey: KeychainStore.readAPIKey(for: .siliconflow),
+                    timeout: settings.timeoutSeconds
                 )
                 let rawText = try await stt.transcribe(audioURL: audioURL)
                 if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
+
+                guard RefinementPolicy.shouldRefine(rawText, minLength: settings.refineMinLength) else {
+                    historyStore.add(rawText: rawText, refinedText: rawText, limit: settings.historyLimit)
+                    deliver(rawText, usedRawFallback: false)
+                    try? FileManager.default.removeItem(at: audioURL)
+                    return
+                }
+
                 do {
                     let chat = ChatRefinementClient(
-                        provider: .siliconflow,
-                        baseURL: settingsStore.settings.baseURL,
-                        model: settingsStore.settings.textModel,
-                        apiKey: KeychainStore.readAPIKey(),
-                        timeout: settingsStore.settings.timeoutSeconds
+                        provider: settings.textConfig.provider,
+                        baseURL: settings.textConfig.baseURL,
+                        model: settings.textConfig.model,
+                        apiKey: KeychainStore.readAPIKey(for: settings.textConfig.provider),
+                        timeout: settings.timeoutSeconds
                     )
                     let refinedText = try await chat.refine(rawText: rawText)
                     if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
-                    historyStore.add(rawText: rawText, refinedText: refinedText, limit: settingsStore.settings.historyLimit)
+                    historyStore.add(rawText: rawText, refinedText: refinedText, limit: settings.historyLimit)
                     deliver(refinedText, usedRawFallback: false)
                 } catch {
                     if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
-                    historyStore.add(rawText: rawText, refinedText: rawText, limit: settingsStore.settings.historyLimit)
+                    historyStore.add(rawText: rawText, refinedText: rawText, limit: settings.historyLimit)
                     deliver(rawText, usedRawFallback: true)
                 }
                 try? FileManager.default.removeItem(at: audioURL)
