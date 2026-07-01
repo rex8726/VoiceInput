@@ -13,7 +13,7 @@ final class OverlayWindowController {
         hosting.view.wantsLayer = true
         hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
         let window = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 72),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 152),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -104,6 +104,21 @@ final class OverlayModel: ObservableObject {
     @Published var audioLevel: Double = 0
 }
 
+/// A dark, translucent glass backdrop using AppKit's HUD material with behind-window blur.
+/// Forced to dark appearance so the glass stays dark regardless of the system theme.
+struct VisualEffectBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        view.appearance = NSAppearance(named: .darkAqua)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
 struct OverlayView: View {
     @ObservedObject var model: OverlayModel
 
@@ -118,15 +133,23 @@ struct OverlayView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
         .frame(width: 300, height: 72)
         .background(
-            Capsule()
-                .fill(.regularMaterial)
+            ZStack {
+                VisualEffectBackground()
+                Color.black.opacity(0.14)
+            }
         )
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.18)))
-        .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.13), radius: 3, y: 1)
+        .shadow(color: .black.opacity(0.20), radius: 22, y: 13)
+        .environment(\.colorScheme, .dark)
+        .padding(40)
     }
 
     private var title: String {
