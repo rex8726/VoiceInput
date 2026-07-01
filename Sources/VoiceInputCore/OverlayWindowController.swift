@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class OverlayWindowController {
     private var window: NSWindow?
+    private var hideWorkItem: DispatchWorkItem?
     private let model = OverlayModel()
 
     init() {
@@ -35,17 +36,32 @@ final class OverlayWindowController {
         case .idle:
             hide()
         case .recording, .processing:
+            cancelScheduledHide()
             show()
-        case .done, .failed:
+        case .done:
             show()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in
-                self?.hide()
-            }
+            scheduleHide(after: 1.4)
+        case .failed:
+            // Keep errors on screen long enough to actually read.
+            show()
+            scheduleHide(after: 6)
         }
     }
 
     func updateAudioLevel(_ level: Double) {
         model.audioLevel = level
+    }
+
+    private func scheduleHide(after seconds: TimeInterval) {
+        cancelScheduledHide()
+        let item = DispatchWorkItem { [weak self] in self?.hide() }
+        hideWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: item)
+    }
+
+    private func cancelScheduledHide() {
+        hideWorkItem?.cancel()
+        hideWorkItem = nil
     }
 
     private func show() {

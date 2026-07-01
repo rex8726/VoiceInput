@@ -1,5 +1,10 @@
 import AppKit
 import Foundation
+import os
+
+extension Logger {
+    static let pipeline = Logger(subsystem: "cn.local.voiceinput", category: "pipeline")
+}
 
 @MainActor
 public enum VoiceInputApplication {
@@ -137,11 +142,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         processingTask = Task { @MainActor in
             defer { processingTask = nil }
             do {
+                // Transcription of long audio waits (idle) on the server far longer than a chat
+                // call, so give STT its own generous timeout floor instead of the chat timeout.
+                let sttTimeout = max(settings.timeoutSeconds, 300)
                 let stt = TranscriptionClient(
                     baseURL: settings.sttConfig.baseURL,
                     model: settings.sttConfig.model,
                     apiKey: KeychainStore.readAPIKey(for: .siliconflow),
-                    timeout: settings.timeoutSeconds
+                    timeout: sttTimeout
                 )
                 let rawText = try await stt.transcribe(audioURL: audioURL)
                 if Task.isCancelled { try? FileManager.default.removeItem(at: audioURL); return }
@@ -174,7 +182,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } catch {
                 try? FileManager.default.removeItem(at: audioURL)
                 if Task.isCancelled || error is CancellationError { return }
-                state = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                Logger.pipeline.error("transcription/refine failed: \(message, privacy: .public)")
+                state = .failed(message)
             }
         }
     }
