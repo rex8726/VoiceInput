@@ -18,6 +18,7 @@ final class OverlayWindowController {
             defer: false
         )
         window.contentViewController = hosting
+        window.isReleasedWhenClosed = false
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false

@@ -28,6 +28,9 @@ final class SettingsWindowController {
             defer: false
         )
         window.title = "语音输入设置"
+        // We keep a strong reference in `self.window`; without this, AppKit's default
+        // release-on-close over-releases the window and reopening crashes (EXC_BAD_ACCESS).
+        window.isReleasedWhenClosed = false
         window.contentViewController = hosting
         window.center()
         self.window = window
