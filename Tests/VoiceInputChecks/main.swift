@@ -112,8 +112,12 @@ struct VoiceInputChecks {
         check(plist["RunAtLoad"] as? Bool == true, "login item should run at load")
 
         check(
-            OpenAICompatibleAPI.refinementSystemPrompt.contains("结构化") && OpenAICompatibleAPI.refinementSystemPrompt.contains("编号列表"),
-            "refinement prompt should ask the model to infer structure"
+            OpenAICompatibleAPI.refinementSystemPrompt.contains("Markdown") && OpenAICompatibleAPI.refinementSystemPrompt.contains("纯文本"),
+            "refinement prompt should forbid Markdown and require plain text"
+        )
+        check(
+            OpenAICompatibleAPI.refinementSystemPrompt.contains("第一人称") && OpenAICompatibleAPI.refinementSystemPrompt.contains("不要有任何开场白"),
+            "refinement prompt should keep the user's voice and ban assistant-style framing"
         )
 
         check(LLMProvider.deepseek.keychainAccount == "apikey-deepseek", "keychain account per provider")
